@@ -1,0 +1,2 @@
+Couldn't open /jdrf/data_var/solexa/genomes/human/fasta/rna.fa , No such file or directory
+faToNib only works on fa files containing a single sequence.

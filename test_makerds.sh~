@@ -1,0 +1,31 @@
+#!/bin/sh
+
+#$ -N test_makerds
+#$ -m bea
+#$ -M vcassen@systemsbiology.org
+#$ -o /proj/hoodlab/share/vcassen/rna-seq/scripts/test_makerds.out
+#$ -e /proj/hoodlab/share/vcassen/rna-seq/scripts/test_makerds.err
+#$ -P solexatrans
+#$ -l h_rt=72:00:00
+
+#python=/hpc/bin/python
+#makerds=/proj/hoodlab/share/vcassen/rna-seq/commoncode/makerdsfromblat.py
+#label=sample_412_fcl_585
+#working_dir=/solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412
+#export_file=s_1_export.10K.txt
+#infile=$working_dir/$export_file.psl
+#outrdsfile=$working_dir/rds/$export_file.rds
+#options='-forceRNA -RNA -index -cache 1000 -rawreadID'
+
+#echo $python $makerds $label $infile $outrdsfile $options
+#    $python $makerds $label $infile $outrdsfile $options
+
+#python makerdsfromblat.py label infilename outrdsfile [-append] [-index] [propertyName::propertyValue] 
+#[-rawreadID] [-forceRNA]  [-flag] [-strict minSpliceLen] [-spliceonly] [-verbose] [-cache numPages]
+
+/hpc/bin/python \
+/proj/hoodlab/share/vcassen/rna-seq/commoncode/makerdsfromblat.py \
+sample_412_fcl_585 \
+-RNA /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.psl \
+/solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/rds/s_1_export.10K.txt.rds \
+-forceRNA -index -cache 1000 -rawreadID

@@ -1,0 +1,19 @@
+Exception `LoadError' at /tools/lib/ruby/site_ruby/1.8/rubygems.rb:1113 - no such file to load -- rubygems/defaults/operating_system
+Exception `NoMethodError' at /tools/lib/ruby/1.8/rational.rb:78 - undefined method `gcd' for Rational(1, 2):Rational
+Exception `LoadError' at /tools/lib/ruby/site_ruby/1.8/rubygems/config_file.rb:34 - no such file to load -- Win32API
+Exception `LoadError' at /tools/lib/ruby/site_ruby/1.8/rubygems/custom_require.rb:31 - no such file to load -- sqlite3
+
+/tools/bin/perl /proj/hoodlab/share/vcassen/rna-seq/scripts/fq_all2std.pl solexa2fasta /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/../s_1_export.10K.txt >/solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.fa
+blatnib.rb:61: warning: global variable `$run_blat_rna_all' not initialized
+
+/package/genome/bin/blat /jdrf/data_var/solexa/genomes/human/fasta/chr1.nib /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.fa -ooc=/jdrf/data_var/solexa/genomes/human/fasta/11.ooc -out=pslx /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.1.psl
+Loaded 247249719 letters in 1 sequences
+Can't open /jdrf/data_var/solexa/genomes/human/fasta/11.ooc to read: No such file or directory
+Exception `RuntimeError' at blatnib.rb:110 - 
+blat: /package/genome/bin/blat /jdrf/data_var/solexa/genomes/human/fasta/chr1.nib /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.fa -ooc=/jdrf/data_var/solexa/genomes/human/fasta/11.ooc -out=pslx /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.1.psl: $? is 65280
+blatnib.rb:110:in `run_blat':  (RuntimeError)
+blat: /package/genome/bin/blat /jdrf/data_var/solexa/genomes/human/fasta/chr1.nib /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.fa -ooc=/jdrf/data_var/solexa/genomes/human/fasta/11.ooc -out=pslx /solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_412/s_1_export.10K.txt.1.psl: $? is 65280
+	from blatnib.rb:104:in `each'
+	from blatnib.rb:104:in `run_blat'
+	from blatnib.rb:66:in `main'
+	from blatnib.rb:240

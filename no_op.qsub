@@ -1,0 +1,12 @@
+#!/bin/sh
+
+#$ -N no_op_qsub
+#$ -m bea
+#$ -M vcassen@systemsbiology.org
+#$ -o /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.out
+#$ -e /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.err
+#$ -P solexatrans
+#$ -l h_rt=72:00:00
+
+echo no_op.qsub: fart no op qsub
+

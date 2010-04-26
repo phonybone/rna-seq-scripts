@@ -1,0 +1,15 @@
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+0.000u 0.000s 0:00.14 0.0%	0+0k 0+0io 4pf+0w
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+Loaded 247249719 letters in 1 sequences
+Searched 750000 bases in 10000 sequences
+23.168u 0.390s 0:24.88 94.6%	0+0k 0+0io 0pf+0w
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+Loaded 247249719 letters in 1 sequences
+Searched 750000 bases in 10000 sequences
+23.146u 0.285s 0:23.58 99.3%	0+0k 0+0io 3pf+0w

@@ -1,0 +1,18 @@
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+Loading /jdrf/data_var/solexa/genomes/human/fasta/chr_all.fa
+Counting /jdrf/data_var/solexa/genomes/human/fasta/chr_all.fa
+Writing 11.ooc
+Wrote 29943 overused 11-mers to 11.ooc
+Done making 11.ooc
+67.258u 8.888s 1:29.72 84.8%	0+0k 0+0io 2pf+0w
+Warning: no access to tty (Bad file descriptor).
+Thus no job control in this shell.
+/home/vcassen
+Fri Apr  9 10:39:21 PDT 2010
+Loading /jdrf/data_var/solexa/genomes/human/fasta/chr_all.fa
+Counting /jdrf/data_var/solexa/genomes/human/fasta/chr_all.fa
+Writing 11.ooc
+Wrote 29943 overused 11-mers to 11.ooc
+Done making 11.ooc
+66.382u 10.252s 1:32.75 82.6%	0+0k 0+0io 1pf+0w
