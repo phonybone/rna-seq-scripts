@@ -2,27 +2,27 @@
 
 # Scaffold script to write the launch_rnaseq_pipeline.rb script for a given set of parameters
 
-$:<<'/proj/hoodlab/share/vcassen/rna-seq/scripts/lib'
+$:<<"#{File.dirname(__FILE__)}/lib"
 require 'options'
+require 'local_utils.rb'
 
 require 'net/http'
 require 'rubygems'
 require 'active_support'
 
-$:<<'/net/dblocal/apps/SLIMarray/rails/cap_slimarray_staging/slimseq_phonybone/vendor/plugins/post_pipelines/app/models/'
-require 'post_pipeline'
-
 def main
   parse_opts
-#  write_scripts
+  write_scripts
 end
 
 def parse_opts
   
   Options.use(%w{ruby rnaseq_pipeline=s working_dir=s export_file=s label=s org=s readlen=i max_mismatches=i script_dir=s rnaseq_dir=s pp_id=i template=s ruby=s dry_run bin_dir=s host=s email=s})
 
+  
+
   defaults={
-    :bin_dir=>'/tools/bin',
+    :bin_dir=>'/local/jdrf_tools/bin',
     :rnaseq_pipeline=>'/proj/hoodlab/share/vcassen/rna-seq/scripts/rnaseq_pipeline.rb',
     :working_dir=>'/solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_419',
     :export_file=>'s_1_export.txt',
@@ -49,6 +49,7 @@ end
 
 
 def write_entry_script
+  
 end
 
 def write_launch_qsub_script
