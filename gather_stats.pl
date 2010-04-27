@@ -34,6 +34,8 @@ BEGIN: {
 MAIN: {
     my $dbh=connect_rds();
 
+    prequisites();
+
     # reports:
     my $report;
     $report.=count_export_lines();
@@ -50,10 +52,23 @@ MAIN: {
     $report.=report_str($h);
 
     my $stats_file=join('/',$options{working_dir},"$options{export}.stats");
-    open (STATS,">$stats_file") or die "Can't open $stats_file for appending: $!\n";
+    open (STATS,">$stats_file") or die "Can't open $stats_file for writing: $!\n";
     print STATS $report;
     close STATS;
     warn "$stats_file written\n";
+}
+
+sub prerequisites {
+    my $output_file=join('/',$options{working_dir},"$options{job_name}.out");
+    my $logfile=join('/',$options{working_dir},'rds',$options{export}).'.rds.log';
+    foreach my $f ($output_file, $logfile) {
+	open(F,$f) or die "check: Can't open $f: $!\n";
+	close F;
+    }
+
+    my $stats_file=join('/',$options{working_dir},"$options{export}.stats"); # writing
+    open(F,">>$stats_file") or die "check: Can't open $stats_file for appending: $!\n";
+    close F;
 }
 
 
