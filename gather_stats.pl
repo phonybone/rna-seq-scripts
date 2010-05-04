@@ -1,8 +1,5 @@
 #!/bin/env perl
 
-# 
-
-
 use strict;
 use warnings;
 use Carp;
@@ -20,21 +17,22 @@ use Options;
 #  It is used in the name of the .stats file created.
 
 BEGIN: {
-  Options::use(qw(d h working_dir=s export=s job_name=s));
+  Options::use(qw(d h working_dir=s export_file=s job_name=s));
     Options::useDefaults(
 			 rds_dir=>'rds',
 			 );
     
-    Options::required(qw(working_dir export job_name));
+    Options::required(qw(working_dir export_file job_name));
     Options::get();
     die usage() if $options{h};
     $ENV{DEBUG}=1 if $options{d};
 }
 
 MAIN: {
+    warn "\n\n$0 entered\n";
     my $dbh=connect_rds();
 
-    prequisites();
+    prerequisites();
 
     # reports:
     my $report;
@@ -49,31 +47,36 @@ MAIN: {
     $report.=report_str($h);
 
     $h=parse_rdslog();
-    $report.=report_str($h);
+    $report.=report_str($h) if keys %$h;
 
-    my $stats_file=join('/',$options{working_dir},"$options{export}.stats");
+    my $stats_file=stats_filename();
     open (STATS,">$stats_file") or die "Can't open $stats_file for writing: $!\n";
     print STATS $report;
     close STATS;
     warn "$stats_file written\n";
 }
 
+sub output_filename { join('/',$options{working_dir},"$options{job_name}.out") }
+sub log_filename    { join('/',$options{working_dir},'rds',$options{export_file}).'.rds.log' }
+sub stats_filename  { join('/',$options{working_dir},"$options{export_file}.stats") }
+
 sub prerequisites {
-    my $output_file=join('/',$options{working_dir},"$options{job_name}.out");
-    my $logfile=join('/',$options{working_dir},'rds',$options{export}).'.rds.log';
+    my $output_file=output_filename();
+    my $logfile=log_filename();
     foreach my $f ($output_file, $logfile) {
-	open(F,$f) or die "check: Can't open $f: $!\n";
+	open(F,$f) or die "check (read): Can't open $f: $!\n";
 	close F;
     }
 
-    my $stats_file=join('/',$options{working_dir},"$options{export}.stats"); # writing
-    open(F,">>$stats_file") or die "check: Can't open $stats_file for appending: $!\n";
+    my $stats_file=stats_filename();
+    open(F,">>$stats_file") or die "check (write): Can't open $stats_file for appending: $!\n";
     close F;
+    warn "pre-reqs passed\n";
 }
 
 
 sub count_export_lines {
-    my $export_file=join('/',$options{working_dir},$options{export});
+    my $export_file=join('/',$options{working_dir},$options{export_file});
     warn "counting lines in $export_file...\n" if $ENV{DEBUG};
     my $count=`wc -l $export_file | cut -f1 -d/  `;
     warn $count if $ENV{DEBUG};
@@ -83,10 +86,13 @@ sub count_export_lines {
 
 # I'm not sure we really want this stat: it may be left over from the previous db....
 sub parse_job_output {
-    my $output_file=join('/',$options{working_dir},"$options{job_name}.out");
+    my $output_file=output_filename();
     warn "parsing job output $output_file...\n";
     my $report={title=>"From job output:"};
-    open (JOB_OUTPUT,$output_file) or die "Can't open $output_file: $!\n";
+    open (JOB_OUTPUT,$output_file) or do {
+	warn "parse_job_output: Can't open $output_file: $!\n";
+	return '';
+    };
     while (<JOB_OUTPUT>) {
 	/(\d+) unique reads, (\d+) spliced reads and (\d+) multireads/ or next;
 	@$report{qw(unique spliced multi)}=($1,$2,$3);
@@ -116,9 +122,12 @@ sub count_db_stats {
 
 # have to figure out exactly what these numbers mean
 sub parse_rdslog {
-    my $logfile=join('/',$options{working_dir},'rds',$options{export}).'.rds.log';
-    warn "parsing $logfile...\n";
-    open (LOGFILE,$logfile) or die "Can't open $logfile: $!\n";
+    my $logfile=log_filename();
+    warn "parsing rds log $logfile...\n";
+    open (LOGFILE,$logfile) or do {
+	warn "Can't open $logfile: $!\n";
+	return {};
+    };
     my ($n_uniques, $n_multis, $n_splices);
     my $line;
     while (<LOGFILE>) {		# we just want the last line, and the file is short
@@ -145,7 +154,7 @@ sub connect_rds {
     my $db_type='db';
     my $dir=join('/', $options{working_dir}, 'rds');
     chdir $dir or die "Can't cd to $dir: $!\n";
-    my $db_name=$options{export};
+    my $db_name=$options{export_file};
     my $dsn="DBI:$engine:$db_name.rds";
     warn "dsn is $dsn" if $ENV{DEBUG};
     my $user=$ENV{USER};

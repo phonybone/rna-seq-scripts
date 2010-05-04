@@ -209,7 +209,7 @@ sub post {
     my $url=join('/',$self->base_url,$type,$method);
     $url.="/$id" if defined $id;
     $url=$self->add_user($url);
-#    warn "${METHOD}ing to $url";
+    warn "${METHOD}ing to $url" if $ENV{DEBUG};
 
     my $headers=HTTP::Headers->new;
 

@@ -10,5 +10,5 @@
 
 # This is a templated (eval'd) ruby script that calls rnaseq_pipeline.rb
 
-sh /proj/hoodlab/share/vcassen/rna-seq/scripts/launch_#{label}.sh
+sh /proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/launch_#{label}.sh
 "

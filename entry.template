@@ -2,5 +2,5 @@
 
 # this file invoked by website
 
-/bin/sh #{launch_qsub} &
+/bin/sh #{launch_qsub} &> #{working_dir}/#{label}.entry.out
 "

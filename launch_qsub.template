@@ -4,16 +4,6 @@
 output=/solexa/hood/022210_LYC/100309_HWI-EAS427_0014_FC61502AAXX/Data/Intensities/BaseCalls/GERALD_16-03-2010_sbsuser/post_pipeline_419/blah
 rm -f $output
 
-COUNTER=1000
-while [  $COUNTER -gt 0 ]; do
-    echo The counter is $COUNTER >> $output
-    let COUNTER=COUNTER-1 
-    sleep 1
-done
-
-exit
-
-
 SGE_ROOT=/sge; export SGE_ROOT
 
 ARCH=\`$SGE_ROOT/util/arch\`

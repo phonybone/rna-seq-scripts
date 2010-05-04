@@ -7,13 +7,15 @@ require 'sqlite3'
 require 'fileutils'
 require 'yaml'
 
-$:<<'/proj/hoodlab/share/vcassen/rna-seq/scripts/lib'
+#$:<<'/proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/lib'
+$:<<"#{File.dirname(__FILE__)}/lib"
+require 'local_utils.rb'
 require 'options'
 require 'app_config'
 
 def parse_cmdline()
-  all_opts=%w{working_dir=s export_file=s label=s pp_id=i org=s readlen=i max_mismatches=i dry_run erccs rnaseq_dir=s script_dir=s bin_dir=s min_score=i ref_genome=s
-   user=s
+  all_opts=%w{working_dir=s export_file=s label=s pp_id=i org=s readlen=i max_mismatches=i align_params=s
+   dry_run erccs rnaseq_dir=s script_dir=s bin_dir=s min_score=i ref_genome=s user=s
    run_export2fasta  run_align  run_makerds  run_erange  run_erccs  run_stats  run_pslReps  run_pslSort
    run_blat_rna_all call_store_hits call_filter_hits}
   
@@ -21,13 +23,12 @@ def parse_cmdline()
   
   config_file=File.replace_ext(__FILE__,'conf')
   conf=YAML.load_config config_file
-  Options.use_defaults(:user=>'solexatrans')
   Options.use_defaults conf
+  Options.use_defaults(:user=>'solexatrans')
 
   Options.required(%w{working_dir export_file label pp_id org readlen max_mismatches rnaseq_dir script_dir})
   Options.parse()
-  Options.readlen=75            # hack
-  puts Options.all.inspect
+#  puts Options.all.inspect
 end
 
 
@@ -61,37 +62,68 @@ def config_globals
   $pslSort='/package/genome/bin/pslSort'
   $pslReps='/package/genome/bin/pslReps'
 
-  config_file='/proj/hoodlab/share/vcassen/rna-seq/scripts/config/rnaseq.conf'
-  AppConfig.load(config_file,'default')
+  $config_file='/proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/config/rnaseq.conf'
+  AppConfig.load($config_file,'default')
 
   ENV['ERANGEPATH']=$erange_dir
+  ENV['CISTEMATIC_ROOT']="#{$genomes_dir}/mouse" # even for human???
+  ENV['PYTHONPATH']=rnaseq_dir
+  ENV['BOWTIE_INDEXES']="#{$genomes_dir}/#{Options.org}"
+  ENV['CISTEMATIC_TEMP']="#{rnaseq_dir}/tmp"
 end
 
 def main
-
+  exit_code=0
+  end_message='Finished'
+  puts "Started at #{Time.now}"
   parse_cmdline()
   config_globals()
-  post_status(Options.pp_id,'Starting') # Can't do this until we've parsed options, assigned globals
-  integrity_checks()
-  mk_working_dir()
 
-  export2fasta(fasta_format())             if Options.run_export2fasta
-  align(fasta_format())                    if Options.run_align
-  makerds()                                if Options.run_makerds
-  call_erange()                            if Options.run_erange
-  stats()                                  if Options.run_stats
-  erccs()                                  if Options.run_erange
-  stats2()                                 if Options.run_stats
+  begin
+    touch_lock()
+    post_status(Options.pp_id,'Starting') # Can't do this until we've parsed options, assigned globals
+    integrity_checks()
+    mk_working_dir()
 
-  post_status(Options.pp_id,'Finished')
+    export2fasta(fasta_format())             if Options.run_export2fasta
+    align(fasta_format())                    if Options.run_align
+    makerds()                                if Options.run_makerds
+    call_erange()                            if Options.run_erange
+    stats()                                  if Options.run_stats
+    erccs()                                  if Options.run_erange
+    stats2()                                 if Options.run_stats
+  rescue Exception => e
+    puts "Caught exception: #{e.message}"
+    exit_code=1
+    end_message='Failed'
+  end
+
+  post_status(Options.pp_id,end_message)
   $timepoints<<[Time.now,'done']
-  time_report()
+  report_times()
+  rm_lock()
+  exit exit_code
 end
 
 
+def touch_lock
+  lock_file="#{$working_dir}/lock.file"
+  system("touch #{lock_file}")
+  system("touch #{$working_dir}/last.run")
+end
+
+def rm_lock
+  lock_file="#{$working_dir}/lock.file"
+  system("rm -f #{lock_file}")
+end
+
 def integrity_checks
   messages=Array.new
-  messages << "#{$export_filepath}: no such file or unreadable"  unless FileTest.readable? $export_filepath
+
+  readables=[$export_filepath, $config_file]
+  readables.each do |file|
+    messages << "#{file}: no such file or unreadable"  unless FileTest.readable? file
+  end
 
   org=Options.org.downcase
   messages << "Unknown org '#{org}'" unless org=='mouse' or org=='human'
@@ -121,6 +153,8 @@ end
 def mk_working_dir()
   FileUtils.mkdir $working_dir unless FileTest.directory? $working_dir
   FileUtils.mkdir "#{$working_dir}/rds" unless FileTest.directory? "#{$working_dir}/rds"
+  FileUtils.chmod 0777, $working_dir
+  FileUtils.chmod 0777, "#{$working_dir}/rds"
 
   FileUtils.cd $working_dir
   puts <<"BANNER"
@@ -139,7 +173,8 @@ end
 def export2fasta(fasta_format)
   post_status(Options.pp_id,'extracting reads from ELAND file')
   $timepoints<<[Time.now,'export2fasta starting']
-  translation_cmd="#{$perl} #{$export2fasta} solexa2fasta #{$working_dir}/#{$export_file}"
+  trans_type=fasta_format=='blat' ? 'solexa2fasta' : 'solexa2fastaq'
+  translation_cmd="#{$perl} #{$export2fasta} #{trans_type} #{$working_dir}/#{$export_file}"
   puts "translation cmd: #{translation_cmd} > #{$working_dir}/#{$export_file}.#{fasta_format}"
 
   # unlink converted export file if it exists (so that redirection, below, won't fail)
@@ -171,17 +206,14 @@ def bowtie()
   reads_file="#{$working_dir}/#{$export_file}.#{fasta_format}"	# export file converted to fasta format
   max_mismatches=Options.max_mismatches
   ref_genome=Options.ref_genome
-  bowtie_opts=AppConfig.bowtie_opts
+  bowtie_opts=Options.align_params
 
   repeats="#{reads_file}.repeats.#{fasta_format}"
   unmapped="#{reads_file}.unmapped.#{fasta_format}"
 
   alignment_cmd="#{$bowtie_exe} #{ref_genome} -n #{max_mismatches} #{bowtie_opts} #{reads_file} --un #{unmapped} --max #{repeats} #{$bowtie_output}"
 
-
   # reads_file is the input
-  #export BOWTIE_INDEXES="#{$genomes_dir}/#{Options.org}"  
-  ENV['BOWTIE_INDEXES']="#{$genomes_dir}/#{Options.org}"
 
   puts "alignment cmd: #{alignment_cmd}"
   post_status(Options.pp_id, 'aligning reads (bowtie)')
@@ -200,17 +232,15 @@ def blat()
   $timepoints<<[Time.now,'starting blat']
 
   # initialization:
-  blat='/package/genome/bin/blat'
+  blat=AppConfig.blat
   genomes="#{$genomes_dir}/#{org}/fasta"
 
   readlen=Options.readlen
-  puts "readlen is #{readlen}"
-  puts "Options.readlen is #{Options.readlen}"
-
   maxMismatches=Options.max_mismatches
   minScore=readlen-maxMismatches
-  Options.min_score=minScore
+  Options.min_score=minScore    # really? are you sure you want to set this here???
   blat_opts="-ooc=#{genomes}/11.ooc -out=pslx -minScore=#{minScore}"
+
   rna_db="#{$working_dir}/rds/#{$export_file}.rna"
   reads_fasta="#{$working_dir}/#{$export_file}.fa" # has to be a .fa format, not .faq (I think)
 
@@ -339,22 +369,18 @@ def store_hits(blat_result,db,readlen)
     read.sub!(/,$/, '')
     strand=stuff[8]
     match=stuff[0]
-    next if read.length!=readlen
-    next if match.to_i<readlen-2     # fixme: set to max_mismatches or something
-    #    read=rev_comp(read) if strand=='-'
-#    a=[read, read.reverse, complement(read), complement(read).reverse]
-    a=[read]
-    a.each do |s|
-      begin
-        rows=dbh.query("SELECT COUNT(*) FROM #{table} WHERE seq='#{s}'").next
-        next if rows[0].to_i>0    # I'm liking sqlite3 less and less
-        dbh.execute("INSERT INTO #{table} (seq) VALUES ('#{s}')")
-        n_insertions+=1
-      rescue Exception => e
-        puts "#{s}: #{e.message}"
-      end
+    next if read.length != readlen
+    next if match.to_i < readlen-Options.max_mismatches
+    begin
+      rows=dbh.query("SELECT COUNT(*) FROM #{table} WHERE seq='#{read}'").next
+      next if rows[0].to_i>0    # I'm liking sqlite3 less and less
+      dbh.execute("INSERT INTO #{table} (seq) VALUES ('#{read}')")
+      n_insertions+=1
+    rescue Exception => e
+      puts "#{read}: #{e.message}"
     end
   end
+
   dbh.execute('END TRANSACTION')
 
   puts "#{n_insertions} reads stored to #{table}"
@@ -437,8 +463,9 @@ end
 
 def call_erange
   $timepoints<<[Time.now,'erange starting']
-  post_status(Options.pp_id,'running ELAND')
-  cmd="time sh #{$erange_script}  #{Options.org} #{$rds_dir}/#{$export_file} #{$genomes_dir}/#{Options.org}/repeats_mask.db 5000"
+  post_status(Options.pp_id,'running ERANGE')
+  $stderr.puts "CISTEMATIC_ROOT is #{ENV['CISTEMATIC_ROOT']}"
+  cmd="time sh #{$erange_script}  #{Options.org.downcase} #{$rds_dir}/#{$export_file} #{$genomes_dir}/#{Options.org.downcase}/repeats_mask.db 5000"
   launch cmd
 end
 
@@ -513,29 +540,13 @@ def launch(cmd)
   puts "\n#{cmd}"
   unless Options.dry_run
     success=system cmd
-    raise "fail: #{cmd}: $? is #{$?}" unless success
+    raise "**************\n\nFAILED\n********\n\n: $? is #{$?}" unless success
   end
 end
-
-def launch_hold(cmd,hold)
-  puts "\n#{cmd}"
-  unless Options.dry_run
-    q=Qsub.new.init({
-                      :label=>Options.label, # fixme! have to use a unique label for each job
-                      :cmd=>cmd,
-                      :hold=>hold,
-                      :working_dir=>$working_dir,
-                      :user=>Options.user})
-    q.set_opt 'M', Options.email
-    success=q.launch
-    raise "fail: #{cmd}: $? is #{$?}" unless success
-  end
-end
-
 
 def post_status(pp_id, status)
   return if pp_id.nil? or pp_id.to_i<=0
-#  launch("#{$perl} #{$post_slimseq} -type post_pipelines -id #{pp_id} -field status -value '#{status}'")
+  launch("#{$perl} #{$post_slimseq} -type post_pipelines -id #{pp_id} -field status -value '#{status}'")
 end
 
 ########################################################################
@@ -555,7 +566,7 @@ def complement(s)
 end
 
 ########################################################################
-def time_report()
+def report_times()
   begin
     last_tp=$timepoints.shift
     start=last_tp
@@ -567,61 +578,13 @@ def time_report()
     last=$timepoints.pop
     puts "#{start[1]} to #{last[1]} (total): #{start[0].since(last[0])}"
   rescue Exception => e
-    puts "Error in time_report: #{e.message}"
+    puts "Error in report_times: #{e.message}"
   end
+  puts "report written at #{Time.now}"
 end
 
 ########################################################################
 
-
-
-class File
-  def self.chop_ext(path)
-    File.join(File.dirname(path),File.basename(path,File.extname(path)))
-  end
-  def self.replace_ext(path,ext)
-    [chop_ext(path),ext].join('.')
-  end
-end
-
-class Time
-  SECS_IN_MIN=60
-  SECS_IN_HOUR=SECS_IN_MIN*60
-  SECS_IN_DAY=SECS_IN_HOUR*24
-  SECS_IN_YEAR=SECS_IN_DAY*365 # screw leap years
-  
-  def self.timespan(t1,t0)
-    t0=t0.to_i
-    t1=t1.to_i
-    d=(t1-t0).abs
-    nYears=d/SECS_IN_YEAR
-    d=d%SECS_IN_YEAR
-    nDays=d/SECS_IN_DAY
-    d=d%SECS_IN_DAY
-    nHours=d/SECS_IN_HOUR
-    d=d%SECS_IN_HOUR
-    nMins=d/SECS_IN_MIN
-    d=d%SECS_IN_MIN
-    
-    str=''
-    str+="#{nYears} years " if nYears>0
-    str+="#{nDays} days " if nDays>0
-    str+="#{nHours} hours " if nHours>0
-    str+="#{nMins} mins " if nMins>0
-    str+="#{d.to_i} secs"
-    str
-  end
-
-  def since(t0)
-    Time.timespan(self,t0)
-  end
-end
-
-module YAML
-  def self.load_config(filename)
-    conf=File.open(filename) { |yml| YAML.load yml }
-  end
-end
 
 
 main()

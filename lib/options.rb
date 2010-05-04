@@ -17,14 +17,14 @@ class Options
   # eg: fuse|f=i
   def self.use(*args)
     args.flatten.each do |arg|
-      (formstr,type)=arg.split('=')
-      type||='b'
+      (formstr,arg_type)=arg.split('=')
+      arg_type||='b'
       forms=formstr.split('|')
       alt=forms[0]
       forms.each do |f|
         h=Hash.new
         h['alt']=alt
-        h['type']=type
+        h['type']=arg_type
         @@opts[f.to_sym]=h
 
         cattr_accessor f          # defines the new accessor
@@ -101,6 +101,7 @@ class Options
 
     ARGV.each do |arg|
       a=String.new(arg)           # otherwise you get some weird "frozen string" error
+#      puts "a is #{a}"
 
       # check for raw opt:
       if (!a.match(/^-/) && need_value.length==0) then
@@ -111,10 +112,15 @@ class Options
       # are we waiting for a value?
       if (need_value.length > 0) then
         if a.match(/^-/)
-          if @@opts[need_value].type=='b'
+
+          raise "need_value=#{need_value}; a=#{a}; no type for '#{need_value}'\n@@opts[#{need_value}] is #{@@opts[need_value.to_sym]}\n@@opts is #{@@opts.inspect}" if @@opts[need_value.to_sym].nil?
+
+          if @@opts[need_value.to_sym]['type']=='b'
             a=true
           else
-            raise "#{need_value}: missing value" 
+            if @@opts[a.to_sym]
+              raise "#{need_value}: missing value" # a is a real option; otherwise fall through and assign a as a value to :need_value
+            end
           end
         end
         set_value(need_value,a)
@@ -145,7 +151,7 @@ class Options
 
     # check for dangling need_value
     if need_value.length > 0
-      if type(need_value)=='b'
+      if arg_type(need_value)=='b'
         set_value(need_value,true)
       else
         raise "#{need_value}: missing value" 
@@ -199,13 +205,13 @@ class Options
     h.each_pair do |k,v|
       raise "invalid key class: #{k}, #{k.class}" unless valid_key_class(k)
       raise "invalid value class: #{v}, #{v.class}" unless valid_value_class(k)
-      type=k.class.to_s.downcase[0,1]
-      use(k+'='+type)
+      arg_type=k.class.to_s.downcase[0,1]
+      use(k+'='+arg_type)
       use_defaults({k=>v})
     end
   end
 
-  def self.type(name)
+  def self.arg_type(name)
     @@opts[name.to_sym]['type']
   end
 

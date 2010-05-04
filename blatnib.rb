@@ -120,7 +120,7 @@ end
 ########################################################################
 # run fq_all2std:
 def run_fq_all2std(working_dir,export_file,perl)
-  fq_all2std='/proj/hoodlab/share/vcassen/rna-seq/scripts/fq_all2std.pl'
+  fq_all2std='/proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/fq_all2std.pl'
   fq_input="#{working_dir}/../#{export_file}"
   fq_output="#{working_dir}/#{export_file}.fa"
   cmd="#{perl} #{fq_all2std} solexa2fasta #{fq_input} >#{fq_output}"

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#$ -N gather_stats.1159.17_5.s_8
+#$ -m bea
+#$ -M vcassen@systemsbiology.org
+#$ -o /solexa/hood/DTRA_lung/091006_HWI-EAS427_FC42RA9AAXX/Data/Intensities/Bustard1.4.0_08-10-2009_sbsuser/GERALD_08-10-2009_sbsuser/gather_stats.1159.17_5.s_8.out
+#$ -e /solexa/hood/DTRA_lung/091006_HWI-EAS427_FC42RA9AAXX/Data/Intensities/Bustard1.4.0_08-10-2009_sbsuser/GERALD_08-10-2009_sbsuser/gather_stats.1159.17_5.s_8.err
+
+perl /users/vcassen/proj_vcassen/rna-seq/scripts/gather_stats.pl -working_dir /solexa/hood/DTRA_lung/090821_HWI-EAS427_FC42FCMAAXX/Data/Intensities/Bustard1.4.0_25-08-2009_sbsuser/GERALD_25-08-2009_sbsuser/post_pipeline -export s_8_export.txt -job_name 1159.17_5.s_8

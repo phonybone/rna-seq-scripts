@@ -1,7 +1,7 @@
 #!/bin/sh
 
 org=human
-size=71
+size=31
 
 root_dir=/proj/hoodlab/share/vcassen/
 rnaseq_dir=$root_dir/rna-seq
