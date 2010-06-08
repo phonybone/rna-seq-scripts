@@ -15,7 +15,7 @@ require 'app_config'
 
 def parse_cmdline()
   all_opts=%w{working_dir=s export_file=s label=s pp_id=i org=s readlen=i max_mismatches=i align_params=s
-   dry_run erccs rnaseq_dir=s script_dir=s bin_dir=s min_score=i ref_genome=s user=s
+   dry_run erccs rnaseq_dir=s script_dir=s bin_dir=s genomes_dir min_score=i ref_genome=s user=s
    run_export2fasta  run_align  run_makerds  run_erange  run_erccs  run_stats  run_pslReps  run_pslSort
    run_blat_rna_all call_store_hits call_filter_hits}
   
@@ -24,11 +24,9 @@ def parse_cmdline()
   config_file=File.replace_ext(__FILE__,'conf')
   conf=YAML.load_config config_file
   Options.use_defaults conf
-  Options.use_defaults(:user=>'solexatrans')
 
   Options.required(%w{working_dir export_file label pp_id org readlen max_mismatches rnaseq_dir script_dir})
   Options.parse()
-#  puts Options.all.inspect
 end
 
 
@@ -93,7 +91,8 @@ def main
     erccs()                                  if Options.run_erange
     stats2()                                 if Options.run_stats
   rescue Exception => e
-    puts "Caught exception: #{e.message}"
+    puts "Caught exception (#{e.class}): #{e.message}"
+    puts e.backtrace
     exit_code=1
     end_message='Failed'
   end
@@ -107,9 +106,15 @@ end
 
 
 def touch_lock
-  lock_file="#{$working_dir}/lock.file"
-  system("touch #{lock_file}")
-  system("touch #{$working_dir}/last.run")
+  begin
+    lock_file="#{$working_dir}/lock.file"
+    system("touch #{lock_file}")
+    FileUtils.chmod 0777, lock_file
+    system("touch #{$working_dir}/last.run")
+    FileUtils.chmod 0777, "#{$working_dir}/last.run"
+  rescue Exception => rt
+    $stderr.puts rt.message
+  end
 end
 
 def rm_lock
@@ -211,7 +216,7 @@ def bowtie()
   repeats="#{reads_file}.repeats.#{fasta_format}"
   unmapped="#{reads_file}.unmapped.#{fasta_format}"
 
-  alignment_cmd="#{$bowtie_exe} #{ref_genome} -n #{max_mismatches} #{bowtie_opts} #{reads_file} --un #{unmapped} --max #{repeats} #{$bowtie_output}"
+  alignment_cmd="#{$bowtie_exe} #{ref_genome} #{bowtie_opts} #{reads_file} --un #{unmapped} --max #{repeats} #{$bowtie_output}"
 
   # reads_file is the input
 
@@ -394,8 +399,8 @@ def filter_hits(fq_output,db,table)
   dbh=SQLite3::Database.new(db)
 
   outfile=File.replace_ext("#{fq_output}","no_rna.fa")
-  return outfile unless Options.call_filter_hits || Options.dry_run # wtf??? fixme
-  return outfile if Options.dry_run # fixme here, too
+#  return outfile unless Options.call_filter_hits || Options.dry_run # wtf??? fixdme
+#  return outfile if Options.dry_run # fixdme here, too
   puts "filter_hits: writing to #{outfile}"
   out=File.open(outfile,"w")
   n_read=n_written=0
@@ -498,7 +503,7 @@ def erccs
     raise "#{alignment_output} unreadable" unless FileTest.readable? alignment_output
     
     launch(count_erccs_cmd)
-    puts "count_erccs: status is #{$?}"        # fixme
+    puts "count_erccs: status is #{$?}"        
     exit $? if $?.to_i>0
     puts "#{ercc_counts} written"
     
@@ -538,6 +543,7 @@ end
 ########################################################################
 def launch(cmd) 
   puts "\n#{cmd}"
+  $stderr.puts "\n#{cmd}"
   unless Options.dry_run
     success=system cmd
     raise "**************\n\nFAILED\n********\n\n: $? is #{$?}" unless success
@@ -546,7 +552,7 @@ end
 
 def post_status(pp_id, status)
   return if pp_id.nil? or pp_id.to_i<=0
-  launch("#{$perl} #{$post_slimseq} -type post_pipelines -id #{pp_id} -field status -value '#{status}'")
+  launch("#{$perl} #{$post_slimseq} -type rnaseq_pipelines -id #{pp_id} -field status -value '#{status}'")
 end
 
 ########################################################################
