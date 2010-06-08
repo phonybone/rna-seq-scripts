@@ -15,6 +15,7 @@ class Options
 
   # define the options to use
   # eg: fuse|f=i
+  # Can be called repeatedly? I think so
   def self.use(*args)
     args.flatten.each do |arg|
       (formstr,arg_type)=arg.split('=')
@@ -49,36 +50,46 @@ class Options
     end
   end
 
+  # set a value;
+  # checks for known (named) values, correct type
+  # raises exceptions on errors
+  # returns void
+  # stores values in both @@opts and via accessors
   def self.set_value(name,raw_value)
     raise "name is nil!" if name.nil?
-    name=name.to_sym
+    raise "set_value: unknown name #{name}" if @@opts[name.to_sym].nil?
+    raise "internal error: missing 'alt' value for #{name}" if @@opts[name.to_sym]['alt'].nil?
+    name=@@opts[name.to_sym]['alt'].to_sym
 
     # convert raw_value to appropriate type
     value=''
-    case @@opts[name]['type']
+    raise "set_value: no type for options '#{name}'" if @@opts[name]["type"].nil?
+    case @@opts[name]["type"]
     when 'b'
       if (raw_value.class==TrueClass || raw_value.class==FalseClass) then
         value=raw_value
       elsif (raw_value.class==String)
-        value=!raw_value.match(/^f|false$/i)
+        value=!raw_value.match(/^f|false|t|true$/i)
       else
-#        puts @@opts[name].inspect
-        raise "illegal class for boolean assignment: '#{name}=#{raw_value.to_s} (#{raw_value.class}) (must be TrueClass, FalseClass, or String)"
+        #        puts @@opts[name].inspect
+#        raise "illegal class for boolean assignment: '#{name}=#{raw_value.to_s} (#{raw_value.class}) (must be TrueClass, FalseClass, or String)"
+        raise "'#{raw_value.to_s}': not a boolean nor one of 'true','false'"
       end
 
     when 'i'
-      
-      raise "#{raw_value}: not an integer" if raw_value.class==String and !raw_value.match(/^[-+]?\d+$/)
+      raise "'#{raw_value.to_s}': not an integer" if raw_value.class==String and !raw_value.match(/^[-+]?\d+$/)
       value=raw_value.to_i
 
     when 'f'
+      float_re=Regexp.new '^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$' # taken from `man perlfaq4`
+      raise "'#{raw_value.to_s}': not a float" if raw_value.match(float_re).nil?
       value=raw_value.to_f
 
     else
       value=raw_value
 
     end
-    @@opts[name.to_sym][:value]=value
+    @@opts[name][:value]=value
     begin
       send("#{name}=",value)    # also set the accessor
     rescue Exception => e
@@ -90,73 +101,66 @@ class Options
       end
     end
 
+#    puts "name=#{name}, alt=#{@@opts[name]['alt']}"
+#    set_value(@@opts[name]['alt'],value) unless @@opts[name]['alt']==name
+
   end
 
 
-  # parse the command line:
-  def self.parse
-    raw_opts=Array.new              
-    need_value=''                 # holds the name of an opt waiting for a value (eg -fuse 1)
+  def self.parse(*args)
+    args=ARGV if args.size==0
+    args=args.flatten
+
+    # Stringify args, then change all '-arg=val' to '-arg', 'val', 
+    args.map! {|x| x=x.to_s}    # convert all args to String (probably unnecessary, but ya never know)
+
+    # what if we just immediately assign these, instead of pushing back to args???
+    args1=Array.new
+    args.each do |arg|
+      if arg.match(/^-[^=]+=/)  # if it starts with '-' and there's a '=' somewhere after, but not right after the '-'
+        a,v=arg.split('=')
+        a.sub!(/^-+/,'')
+        v.gsub!(/^['"]/,'')
+        v.gsub!(/["']$/,'')
+        set_value(a,v)          # bam!
+      else
+        args1<<arg              # carry through
+      end
+    end
+    args=args1
     
+    raw_opts=Array.new
+    need_value=nil
+    
+    # chew through args:
+    args.each do |a|
+      arg=String.new a          # has to be here to avoid "frozen value" errors (trying to alter an immutable string??)
+      if arg.match(/^-/)
+        arg.sub!(/^-+/,'')       # get rid of leading '-'s
+        arg=arg.to_sym
 
-    ARGV.each do |arg|
-      a=String.new(arg)           # otherwise you get some weird "frozen string" error
-#      puts "a is #{a}"
-
-      # check for raw opt:
-      if (!a.match(/^-/) && need_value.length==0) then
-        raw_opts<<a
-        next
-      end
-
-      # are we waiting for a value?
-      if (need_value.length > 0) then
-        if a.match(/^-/)
-
-          raise "need_value=#{need_value}; a=#{a}; no type for '#{need_value}'\n@@opts[#{need_value}] is #{@@opts[need_value.to_sym]}\n@@opts is #{@@opts.inspect}" if @@opts[need_value.to_sym].nil?
-
-          if @@opts[need_value.to_sym]['type']=='b'
-            a=true
-          else
-            if @@opts[a.to_sym]
-              raise "#{need_value}: missing value" # a is a real option; otherwise fall through and assign a as a value to :need_value
-            end
-          end
+        raise "missing value for '#{need_value}' (#{arg})" unless need_value.nil?
+        raise "unknown arg #{arg}\n\n#{@@opts.inspect}" unless known_arg(arg)
+        t=arg_type(arg)
+        if arg_type(arg)=='b'
+          set_value(arg,true)
+        else
+          need_value=arg
         end
-        set_value(need_value,a)
-        need_value=''             # reset flag
-        next
-      end
 
-      # remove leading '-'s
-      a.sub!(/^-+/,'')
+      else                      # arg doesn't start with '-'
+        if need_value.nil?
+          raw_opts<<arg
+        else
+          set_value(need_value,arg)
+          need_value=nil
+        end                       # if need_value.nil?
+      end                         # if arg.match(/^-/)
+    end                           # args.each do |arg|
+    
+    # check for missing value at end:
+    raise "missing value for '#{need_value}'" unless need_value.nil?
 
-      # split into name,value
-      (name,value)=a.split('=')
-      name=name.to_sym
-
-      # is this a known option?
-      a_hash=@@opts[name] or raise "#{a}: unknown option"
-
-      # does name need a value?  Do we have one?  
-      raise "#{need_value}: missing value" if (need_value.length > 0 && value.length==0) 
-
-      # is a value provided?
-      if (!value.nil?) then
-        set_value(name,value)
-      else
-        need_value=a 
-      end
-    end
-
-    # check for dangling need_value
-    if need_value.length > 0
-      if arg_type(need_value)=='b'
-        set_value(need_value,true)
-      else
-        raise "#{need_value}: missing value" 
-      end
-    end
     # check all requried opts are present:
     missing=Array.new
     @@opts.each_pair do |name,a_hash|
@@ -165,15 +169,22 @@ class Options
     if missing.length > 0
       raise "missing options: #{missing.join(', ')}" 
     end
-
-    # return remaining args:
-    raw_opts
+    
+    return raw_opts
   end
 
+  def self.known_arg(arg)
+    !@@opts[arg.to_sym].nil?
+  end
+
+  def self.arg_type(arg)
+    @@opts[arg.sym]['type']
+  end
 
   # retrieve a specfic option value:
   def self.value_of(name)
     name=name.to_sym
+    return nil if @@opts[name].nil?
     @@opts[name] && @@opts[name][:value]
   end
 
@@ -198,6 +209,14 @@ class Options
     all
   end
 
+  def self.pretty_print(joiner="\n")
+    report=Array.new
+    @@opts.each_pair do |name,a_hash|
+      report<<"#{name}: #{a_hash[:value]}"
+    end
+    report.join(joiner)
+  end
+
   # use a hash to set defaults.  This calls use(k), then use_default(k,v)
   # for each element in the hash.  Barfs (raises) exceptions if the class
   # of either key of value is invalid (according to self.valid_[key|value]_class().
@@ -215,4 +234,5 @@ class Options
     @@opts[name.to_sym]['type']
   end
 
+  #  puts "#{__FILE__} checking in"
 end
