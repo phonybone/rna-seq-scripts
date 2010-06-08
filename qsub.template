@@ -1,4 +1,4 @@
-"#!/bin/sh
+"#!/bin/tcsh
 
 #\$ -N #{label}
 #\$ -m bea
@@ -8,9 +8,9 @@
 #\$ -P solexatrans
 #\$ -l h_rt=72:00:00
 
-#{ruby} #{rnaseq_pipeline} -working_dir #{working_dir} -export_file #{export_file} -label #{label} -org #{org_name} -ref_genome #{ref_genome} -readlen #{readlen} -max_mismatches #{max_mismatches} -align_params '#{align_params}' -script_dir #{script_dir} -rnaseq_dir #{rnaseq_dir} -bin_dir #{bin_dir} -pp_id #{pp_id} #{dry_run_flag}
+#{ruby} #{rnaseq_pipeline} -working_dir #{working_dir} -export_file #{export_file} -label #{label} -org #{org} -ref_genome #{ref_genome} -readlen #{readlen} -max_mismatches #{max_mismatches} -align_params='#{align_params}' -script_dir #{script_dir} -rnaseq_dir #{rnaseq_dir} -bin_dir #{bin_dir} -pp_id #{pp_id} #{dry_run_flag}
 
-if [ ! \"#{dry_run_flag}\" == \"\" ]; then 
+if ( \"X#{dry_run_flag}\" == \"X\" ) then 
 #{perl} #{gather_stats} -working_dir #{working_dir} -export_file #{export_file} -job_name #{label}
-fi
+endif
 "
