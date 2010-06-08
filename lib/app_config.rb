@@ -58,7 +58,12 @@ class AppConfig
 
   def self.[] (name)
     key=name.to_sym
-    a=send("#{key}")
+    a=nil
+    begin
+      a=send("#{key}")
+    rescue Exception => e
+    end
+    a
   end
 
   def self.all
