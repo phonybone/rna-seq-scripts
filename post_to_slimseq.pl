@@ -10,13 +10,15 @@ use SlimseqClient;
 
 # Post to slimseq
 
-BEGIN: {
+sub parse_args {
   Options::use(qw(d q v h type=s id=i field=s value=s 
 		  base_url user pass));
     Options::required(qw(type id field value));
-    Options::useDefaults(base_url=>'http://db/slimarray_staging',
+    Options::useDefaults(base_url=>'http://slim/slimseq',
 			 user=>'slimbot',
+#			 user=>'slimseq',
 			 pass=>'l7Zh8t8WsO4LAFsFYgaw',
+#			 pass=>'sl1mphat',
 			 );
     Options::get();
     die Options::usage() if $options{h};
@@ -24,6 +26,7 @@ BEGIN: {
 }
 
 MAIN: {
+    parse_args;
     my @ss_args=qw(base_url user pass);
     my %ss_args;
     @ss_args{@ss_args}=@options{@ss_args};
