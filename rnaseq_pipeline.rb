@@ -46,7 +46,8 @@ def config_globals
   $erange_dir="#{rnaseq_dir}/commoncode"
   $rds_dir="#{$working_dir}/rds"
   $erange_script="#{rnaseq_dir}/commoncode/runStandardAnalysisNFS.sh"
-  align=Options.readlen >= 50 ? 'blat' : 'bowtie'
+#  align=Options.readlen >= 50 ? 'blat' : 'bowtie'
+  align='bowtie'
   $makerds_script="#{rnaseq_dir}/commoncode/makerdsfrom#{align}.py"
   $stats_script="#{script_dir}/gather_stats.pl"
   $bowtie2count="#{script_dir}/bowtie2count.ercc.pl"
@@ -178,7 +179,8 @@ end
 def export2fasta(fasta_format)
   post_status(Options.pp_id,'extracting reads from ELAND file')
   $timepoints<<[Time.now,'export2fasta starting']
-  trans_type=fasta_format=='blat' ? 'solexa2fasta' : 'solexa2fastaq'
+#  trans_type=fasta_format=='blat' ? 'solexa2fasta' : 'solexa2fastaq'
+  trans_type='solexa2fastaq'
   translation_cmd="#{$perl} #{$export2fasta} #{trans_type} #{$working_dir}/#{$export_file}"
   puts "translation cmd: #{translation_cmd} > #{$working_dir}/#{$export_file}.#{fasta_format}"
 
@@ -194,11 +196,11 @@ end
 
 ########################################################################
 def align(fasta_format)
-  if aligner()=='blat'
-    return blat()
-  else
+#  if aligner()=='blat'
+#    return blat()
+#  else
     return bowtie()
-  end
+#  end
 end
 
 ########################################################################
@@ -451,7 +453,8 @@ def makerds()
   post_status(Options.pp_id,'Creating RDS files from alignment')
   $timepoints<<[Time.now,'makerds starting']
 
-  alignment_output= aligner()=='blat' ? $blat_output : $bowtie_output
+#  alignment_output= aligner()=='blat' ? $blat_output : $bowtie_output
+  alignment_output=$bowtie_output
   rds_output="#{$rds_dir}/#{$export_file}.rds"
   FileUtils.remove rds_output if FileTest.readable? rds_output and !Options.dry_run
   org=Options.org.downcase
@@ -557,11 +560,13 @@ end
 
 ########################################################################
 def aligner
-  Options.readlen>=50 ? 'blat':'bowtie'
+  return 'bowtie'
+#  Options.readlen>=50 ? 'blat':'bowtie'
 end
 
 def fasta_format
-  Options.readlen>=50 ? 'fa':'faq'
+#  Options.readlen>=50 ? 'fa':'faq'
+  'faq'
 end
 
 
