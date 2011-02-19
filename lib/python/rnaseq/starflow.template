@@ -1,0 +1,36 @@
+#-*-python-*-
+import sys
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python')
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python/rnaseq')
+sys.path.append('${working_dir}/starflow')
+sys.path.append('${working_dir}/starflow/starflow')
+try:
+    sys.path.remove('/proj/hoodlab/share/vcassen/lib/python/starflow')
+except:
+    pass
+
+
+import os
+import yaml
+from Rnaseq import *
+
+
+# Load and call starflow:
+os.environ['DataEnvironmentDirectory']='${working_dir}'
+os.environ['PYTHONPATH']='${python_lib}'
+os.environ['BOWTIE_INDEXES']='${genomes_dir}/${org}'
+
+os.environ['ERANGEPATH']='${rnaseq_dir}/commoncode'
+os.environ['CISTEMATIC_ROOT']='${genomes_dir}/mouse' 
+os.environ['CISTEMATIC_TEMP']='${rnaseq_dir}/tmp'
+
+
+
+
+#os.environ['AutomaticUpdatesPath']='${working_dir}/configure_automatic_updates.txt'
+#os.environ['liveModuleFilterPath']='${working_dir}/configure_live_module_filters.txt'
+#os.environ['STARFLOW_DIR']=globals['starflow_dir']
+
+os.chdir('${working_dir}/starflow/Temp')
+execfile('${starflow_initialize}')
+${starflow_cmd}()

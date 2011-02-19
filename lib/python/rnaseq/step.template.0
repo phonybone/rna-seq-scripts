@@ -1,0 +1,4 @@
+def step_${name}(cmd_str, depends_on='${input}', creates='${output}'):
+     system(cmd_str)
+
+#step_${name}('${cmd}')

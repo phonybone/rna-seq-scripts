@@ -1,0 +1,3 @@
+PATH_TO_PYTHON='${bin_dir}/python'
+DEFAULT_CALLMODE='DIRECT'
+

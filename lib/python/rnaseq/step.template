@@ -1,0 +1,4 @@
+def step_${name}(depends_on='${input}', creates='${output}'):
+     ${name}=${pipeline_var_name}.steps['${name}']
+     ${name}.run()
+

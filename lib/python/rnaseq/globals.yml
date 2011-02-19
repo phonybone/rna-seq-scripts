@@ -1,0 +1,39 @@
+# These items describe different directories needed by the RNA-Seq pipeline.
+# Each directory contains data or programs.
+#
+# rnaseq_dir: a "root" directory under which various resources can be found 
+# script_dir: where most of the top-level rna-seq scripts are located
+# bin_dir: the location of several standard executable files; differs between the cluster and other machines
+# genomes_dir: the location of geneomic data, including bowtie indexes
+# python_lib: the location of many rna-seq pipeline modules written in python
+#
+rnaseq_dir: /proj/hoodlab/share/vcassen/rna-seq
+script_dir: /proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts
+bin_dir: /hpc/bin
+genomes_dir: /jdrf/data_var/solexa/genomes
+python_lib: /proj/hoodlab/share/vcassen/lib/python
+
+# This section contains the location of files and other information
+# used by the pipeline code to create scripts that define a specfic pipeline.
+# domain: the general location of templates and template fragments
+# step_template: a template file describing a generic pipeline
+# starflow_dir: the location of the starflow provenance library
+# starflow_template: a python script template that launches a pipeline under starflow control
+# rnaseq_template: a python script template describing a pipeline (launched by starflow_template, above)
+# starflow_initialize: a starflow command needed by the starflow template
+# starflow_command: Can be one of "FullUpdate" or "FindOutWhatWillUpdate"; will determine if the pipeline is actually  run or just examined
+#
+domain: /proj/hoodlab/share/vcassen/lib/python/rnaseq
+step_template: step.template
+starflow_dir: /proj/hoodlab/share/vcassen/lib/python/starflow/starflow
+starflow_template: starflow.template
+rnaseq_template: rnaseq.template
+starflow_initialize: '../System/initialize_vc'
+starflow_cmd: FullUpdate
+
+# "qsub" is the command used to submit a job to the cluster.  These items
+# all relate to the submissing of cluster jobs.
+qsub_host: aegir
+qsub_exe: /sge/bin/lx24-amd64/qsub
+qsub_template: qsub.template.generic
+ssh_cmd: ssh

@@ -1,0 +1,73 @@
+obtained from:LinksFromOperations(LoadLiveModules()) 
+
+('CreatedBy',
+ 'rnaseq.rnaseq.step_alignment',
+ '../rnaseq/rnaseq.py',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq.bowtie',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq.bowtie',
+ 'rnaseq.rnaseq.step_alignment',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('CreatedBy',
+ 'rnaseq.rnaseq.step_erange',
+ '../rnaseq/rnaseq.py',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.final.rpkm',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.final.rpkm',
+ 'rnaseq.rnaseq.step_erange',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('CreatedBy',
+ 'rnaseq.rnaseq.step_export2fasta',
+ '../rnaseq/rnaseq.py',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq',
+ 'rnaseq.rnaseq.step_export2fasta',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('CreatedBy',
+ 'rnaseq.rnaseq.step_make_rds',
+ '../rnaseq/rnaseq.py',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.rds',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.rds',
+ 'rnaseq.rnaseq.step_make_rds',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('DependsOn',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq',
+ 'rnaseq.rnaseq.step_alignment',
+ '../rnaseq/rnaseq.py',
+ 'None',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('DependsOn',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq.bowtie',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.faq.bowtie',
+ 'rnaseq.rnaseq.step_make_rds',
+ '../rnaseq/rnaseq.py',
+ 'None',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('DependsOn',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.rds',
+ '/users/vcassen/links/samples/sandbox/post_pipeline_389_590_648/28Jan11.165709/s_6_export.txt.rds',
+ 'rnaseq.rnaseq.step_erange',
+ '../rnaseq/rnaseq.py',
+ 'None',
+ '../rnaseq/rnaseq.py',
+ 0)
+
+('DependsOn',
+ '/users/vcassen/links/samples/sandbox/s_6_export.txt',
+ '/users/vcassen/links/samples/sandbox/s_6_export.txt',
+ 'rnaseq.rnaseq.step_export2fasta',
+ '../rnaseq/rnaseq.py',
+ 'None',
+ '../rnaseq/rnaseq.py',
+ 0)

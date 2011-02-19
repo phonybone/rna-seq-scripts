@@ -1,0 +1,4 @@
+section:
+  item2: "get(['section']['item1'])"
+  item3: "get(['section']['item1'])"
+  item1: item1

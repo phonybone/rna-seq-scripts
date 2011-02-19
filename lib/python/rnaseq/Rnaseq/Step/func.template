@@ -1,0 +1,6 @@
+"
+def %s_step(cmd_str):
+    system(cmd_str)
+"
+
+%s_step(cmd_str)

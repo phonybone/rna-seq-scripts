@@ -1,0 +1,37 @@
+#-*-python-*-
+# Template for pipelines with starflow support...
+
+import sys
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python')
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python/starflow')
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python/starflow/starflow')
+sys.path.append('/proj/hoodlab/share/vcassen/lib/python/rnaseq')
+try:
+    sys.path.remove('/proj/hoodlab/share/vcassen/lib/python/starflow')
+except:
+    pass
+
+import os
+
+import yaml
+from Rnaseq.Pipeline import *
+from Rnaseq.Sample import *
+
+# read globals and config files
+f=open(os.path.join('${python_lib}/rnaseq', '${globals_file}'),'r')
+global_vars=yaml.load(f)
+f.close
+
+# create sample object
+sample=RnaseqSample(
+    {'conf_file':'${sample_yml}',
+     '_timestamp':'${timestamp}'}
+    ).load()
+
+# create pipeline object
+pipeline=RnaseqPipeline({'globals':global_vars, 'steps_syml':'${steps_syml}', 'sample':sample})
+pipeline.load()
+
+# list of rnaseq steps:
+${rnaseq_steps}
+
