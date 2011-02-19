@@ -1,12 +1,16 @@
-#!/bin/sh
+"#!/bin/sh
 
-#$ -N no_op_qsub
-#$ -m bea
-#$ -M vcassen@systemsbiology.org
-#$ -o /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.out
-#$ -e /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.err
-#$ -P solexatrans
-#$ -l h_rt=72:00:00
+#\$ -N no_op_qsub
+#\$ -m bea
+#\$ -M vcassen@systemsbiology.org
+#\$ -o /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.out
+#\$ -e /proj/hoodlab/share/vcassen/rna-seq/scripts/tmp/no_op.err
+#\$ -P solexatrans
+#\$ -l h_rt=72:00:00
 
-echo no_op.qsub: fart no op qsub
+echo no_op.qsub:  no op qsub
 
+# pp_id=#{pp_id}
+# export_filepath=#{export_filepath}
+
+"

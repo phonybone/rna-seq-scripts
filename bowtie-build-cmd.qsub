@@ -1,9 +1,0 @@
-#!/bin/sh
-
-#$ -N bowtie-build-human-31
-#$ -m bea
-#$ -M vcassen@systemsbiology.org
-#$ -o /proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/tmp_qsub_scripts/bowtie-build-human-31.out
-#$ -e /proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/tmp_qsub_scripts/bowtie-build-human-31.err
-
-/bin/sh /proj_vcassen/rna-seq/rna-seq-scripts/bowtie-build-cmd.sh

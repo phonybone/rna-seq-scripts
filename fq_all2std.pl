@@ -7,13 +7,13 @@ use warnings;
 use Getopt::Std;
 
 my $usage = qq(
-Usage:   fq_all2std.pl <command> <in.txt>
+Usage:   fq_all2std.pl <command> <in.txt> [<in2.txt>]
 
 Command: scarf2std      Convert SCARF format to the standard/Sanger FASTQ
          fqint2std      Convert FASTQ-int format to the standard/Sanger FASTQ
          sol2std        Convert Solexa/Illumina FASTQ to the standard FASTQ
 	 solexa2fasta   Convert Solexa/Illumina export.txt to FASTA
-	 solexa2fastaq  Convert Solexa/Illumina export.txt to FASTQ
+	 solexa2fastq  Convert Solexa/Illumina export.txt to FASTQ
          fa2std         Convert FASTA to the standard FASTQ
          fq2fa          Convert various FASTQ-like format to FASTA
          instruction    Explanation to different format
@@ -31,9 +31,25 @@ for (-64..64) {
 }
 
 # parsing command line
-my $cmd = shift;
-my %cmd_hash = (scarf2std=>\&scarf2std, fqint2std=>\&fqint2std, sol2std=>\&sol2std, solexa2fasta=>\&solexa2fasta, , solexa2fastaq=>\&solexa2fastaq, fa2std=>\&fa2std,
-				fq2fa=>\&fq2fa, example=>\&example, instruction=>\&instruction);
+my $cmd = shift or die $usage;
+my %cmd_hash = (scarf2std=>\&scarf2std, fqint2std=>\&fqint2std, sol2std=>\&sol2std, solexa2fasta=>\&solexa2fasta, , solexa2fastq=>\&solexa2fastq, fa2std=>\&fa2std,
+				fq2fa=>\&fq2fa, example=>\&example, instruction=>\&instruction, solexa2fastq2=>\&solexa2fastq2);
+
+
+# open input(s) unless $cmd is special:
+unless ($cmd eq 'solexa2fastq') {
+    close STDIN;
+    my $input=shift or die $usage;
+    open (STDIN, $input) or die "Can't open $input: $!\n";
+}
+
+# open output
+my $output=pop @ARGV or die $usage;
+close STDOUT;
+open (STDOUT, ">$output") or die "Can't open $output for writing: $!\n";
+
+
+
 if (defined($cmd_hash{$cmd})) {
   &{$cmd_hash{$cmd}};
 } else {
@@ -112,13 +128,47 @@ sub solexa2fasta {
     }
 }
 
-sub solexa2fastaq {
+sub solexa2fastq {
+    # fixme: read one line and do an integrity check, exit if check fails.
     while (<>) {
 	my @stuff=split(/\s/);
 	my $title=join('_',@stuff[0..7]);
 	my $qual=join('',map {$conv_table[ord($_)]} split('',$stuff[9]));
 	print join("\n","\@$title",$stuff[8],"+$title",$qual),"\n";
     }
+}
+
+# paired end reads (fastq):
+sub solexa2fastq2 {
+    my $filename1=shift @ARGV or die $usage;
+    my $filename2=shift @ARGV or die $usage;
+    open(FILE1,$filename1) or die "Can't open $filename1: $!\n";
+    open(FILE2,$filename2) or die "Can't open $filename2: $!\n";
+
+    my $n_read=0;
+#    my $fuse=10;
+    while (my $l1=<FILE1>) {
+	my $l2=<FILE2>;
+	die "$filename1 longer than $filename2\n" unless defined $l2;
+	my @s1=split(/\s+/,$l1);
+	my ($read1,$score1)=@s1[(8,9)];
+
+	my @s2=split(/\s+/,$l2);
+	my ($read2,$score2)=@s2[(8,9)];
+
+	my $readname="$s1[0]_${n_read}";
+	$n_read++;
+	print join("\t",$readname,$read1,$score1,$read2,$score2),"\n";
+
+#	last if --$fuse==0;
+    }
+
+    close FILE1;
+    my $extra=<FILE2>;
+    if (defined $extra) {
+	die "$filename2 longer than $filename1\n";
+    }
+    close FILE2;
 }
 
 sub instruction {

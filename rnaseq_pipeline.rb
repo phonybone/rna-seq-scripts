@@ -6,6 +6,7 @@ require 'rubygems'
 require 'sqlite3'
 require 'fileutils'
 require 'yaml'
+require 'action_mailer'
 
 #$:<<'/proj/hoodlab/share/vcassen/rna-seq/rna-seq-scripts/lib'
 $:<<"#{File.dirname(__FILE__)}/lib"
@@ -14,10 +15,9 @@ require 'options'
 require 'app_config'
 
 def parse_cmdline()
-  all_opts=%w{working_dir=s export_file=s label=s pp_id=i org=s readlen=i max_mismatches=i align_params=s
+  all_opts=%w{working_dir=s export_file=s export_file2 label=s pp_id=i org=s readlen=i max_mismatches=i align_params=s
    dry_run erccs rnaseq_dir=s script_dir=s bin_dir=s genomes_dir min_score=i ref_genome=s user=s
-   run_export2fasta  run_align  run_makerds  run_erange  run_erccs  run_stats  run_pslReps  run_pslSort
-   run_blat_rna_all call_store_hits call_filter_hits}
+   run_export2fasta  run_align  run_makerds  run_erange  run_erccs  run_stats  run_pslReps  run_pslSort}
   
   Options.use(all_opts)
   
@@ -25,7 +25,8 @@ def parse_cmdline()
   conf=YAML.load_config config_file
   Options.use_defaults conf
 
-  Options.required(%w{working_dir export_file label pp_id org readlen max_mismatches rnaseq_dir script_dir})
+  Options.required(%w{working_dir export_file label org readlen max_mismatches rnaseq_dir script_dir})
+# Options.required(%w{working_dir export_file label org readlen max_mismatches rnaseq_dir script_dir pp_id})
   Options.parse()
 end
 
@@ -35,6 +36,7 @@ end
 def config_globals
   $working_dir=Options.working_dir
   $export_file=Options.export_file
+  $export_file2=Options.export_file2
   script_dir=Options.script_dir
   $timepoints=[[Time.now,'starting']]
   rnaseq_dir=Options.rnaseq_dir
@@ -42,11 +44,9 @@ def config_globals
   $post_slimseq="#{script_dir}/post_to_slimseq.pl"
   $export2fasta="#{script_dir}/fq_all2std.pl"
   $bowtie_exe="#{rnaseq_dir}/bowtie/bowtie"
-  $blat_exe='/package/genome/bin/blat'
   $erange_dir="#{rnaseq_dir}/commoncode"
   $rds_dir="#{$working_dir}/rds"
   $erange_script="#{rnaseq_dir}/commoncode/runStandardAnalysisNFS.sh"
-#  align=Options.readlen >= 50 ? 'blat' : 'bowtie'
   align='bowtie'
   $makerds_script="#{rnaseq_dir}/commoncode/makerdsfrom#{align}.py"
   $stats_script="#{script_dir}/gather_stats.pl"
@@ -56,7 +56,6 @@ def config_globals
   $perl="#{Options.bin_dir}/perl"
   $python="#{Options.bin_dir}/python"
   $psl_ext='psl'
-  $blat_output="#{$working_dir}/#{$export_file}.#{$psl_ext}"
   $bowtie_output="#{$working_dir}/#{$export_file}.#{fasta_format()}.bowtie.out"
   $pslSort='/package/genome/bin/pslSort'
   $pslReps='/package/genome/bin/pslReps'
@@ -84,18 +83,25 @@ def main
     integrity_checks()
     mk_working_dir()
 
-    export2fasta(fasta_format())             if Options.run_export2fasta
+    # steps:
+    if Options.run_export2fasta
+      export2fasta(fasta_format(), $export_file)
+      export2fasta(fasta_format(), $export_file2) unless $export_file2.nil?
+    end
     align(fasta_format())                    if Options.run_align
     makerds()                                if Options.run_makerds
     call_erange()                            if Options.run_erange
     stats()                                  if Options.run_stats
     erccs()                                  if Options.run_erange
     stats2()                                 if Options.run_stats
+
   rescue Exception => e
     puts "Caught exception (#{e.class}): #{e.message}"
     puts e.backtrace
     exit_code=1
     end_message='Failed'
+
+    report_to_mothership(e)
   end
 
   post_status(Options.pp_id,end_message)
@@ -175,42 +181,50 @@ end
 
 ########################################################################
 ## translate export.txt file to fasta format
-
-def export2fasta(fasta_format)
+## might have to do it twice if paired end
+def export2fasta(fasta_format, export_file)
   post_status(Options.pp_id,'extracting reads from ELAND file')
   $timepoints<<[Time.now,'export2fasta starting']
-#  trans_type=fasta_format=='blat' ? 'solexa2fasta' : 'solexa2fastaq'
-  trans_type='solexa2fastaq'
-  translation_cmd="#{$perl} #{$export2fasta} #{trans_type} #{$working_dir}/#{$export_file}"
-  puts "translation cmd: #{translation_cmd} > #{$working_dir}/#{$export_file}.#{fasta_format}"
+
+  trans_type='solexa2fastq'    # could change this... fixme
+  translation_cmd="#{$perl} #{$export2fasta} #{trans_type} #{$working_dir}/#{export_file}"
+  puts "translation cmd: #{translation_cmd} > #{$working_dir}/#{export_file}.#{fasta_format}"
 
   # unlink converted export file if it exists (so that redirection, below, won't fail)
-  if (FileTest.readable?("#{$working_dir}/#{$export_file}.#{fasta_format}") and !Options.dry_run) then
-    FileUtils.remove "#{$working_dir}/#{$export_file}.#{fasta_format}"
+  if (FileTest.readable?("#{$working_dir}/#{export_file}.#{fasta_format}") and !Options.dry_run) then
+    FileUtils.remove "#{$working_dir}/#{export_file}.#{fasta_format}"
   end
 
-  launch("#{translation_cmd} > #{$working_dir}/#{$export_file}.#{fasta_format}")
+  launch("#{translation_cmd} > #{$working_dir}/#{export_file}.#{fasta_format}")
 
-# this writes #{$working_dir}/#{$export_file}.#{fasta_format}
+# this writes #{$working_dir}/#{export_file}.#{fasta_format}
 end
 
 ########################################################################
 def align(fasta_format)
-#  if aligner()=='blat'
-#    return blat()
-#  else
-    return bowtie()
-#  end
+  return bowtie()
 end
 
 ########################################################################
 ## bowtie-cmd.sh:
-## Note: bowtie needs .ewbt files to work from; don"t exist yet for critters other than mouse
+## Note: bowtie needs .ewbt files to work from
+## Paired end, color space; what is the best way to specify various options/cmds
+## Hard-coding one function per parameter set seems (is) stupid;
+## 
+## Bowtie Usage:
+##
+##  bowtie [options]* <ebwt> {-1 <m1> -2 <m2> | --12 <r> | <s>} [<hit(output)>]
+##
 
 def bowtie()
   fasta_format=fasta_format()
   $timepoints<<[Time.now,'bowtie starting']
-  reads_file="#{$working_dir}/#{$export_file}.#{fasta_format}"	# export file converted to fasta format
+  if ($export_file2.nil?) then
+    reads_file="#{$working_dir}/#{$export_file}.#{fasta_format}"	# export file converted to fasta format
+  else 
+    # paired end alignment
+    reads_file="-1 #{$working_dir}/#{$export_file}.#{fasta_format} -2  #{$working_dir}/#{$export_file2}.#{fasta_format}"
+  end
   max_mismatches=Options.max_mismatches
   ref_genome=Options.ref_genome
   bowtie_opts=Options.align_params
@@ -230,217 +244,9 @@ def bowtie()
   puts ""
 end
 
-#-----------------------------------------------------------------------
-
-def blat()
-  $timepoints<<[Time.now,'blat starting']
-  org=Options.org.downcase
-  label=Options.label
-  $timepoints<<[Time.now,'starting blat']
-
-  # initialization:
-  blat=AppConfig.blat
-  genomes="#{$genomes_dir}/#{org}/fasta"
-
-  readlen=Options.readlen
-  maxMismatches=Options.max_mismatches
-  minScore=readlen-maxMismatches
-  Options.min_score=minScore    # really? are you sure you want to set this here???
-  blat_opts="-ooc=#{genomes}/11.ooc -out=pslx -minScore=#{minScore}"
-
-  rna_db="#{$working_dir}/rds/#{$export_file}.rna"
-  reads_fasta="#{$working_dir}/#{$export_file}.fa" # has to be a .fa format, not .faq (I think)
-
-  # main processing starts here:
-  if Options.run_blat_rna_all
-    blat_result=blat_rna(blat,reads_fasta) 
-    $timepoints<<[Time.now,'rna_reads_fasta']
-    table=store_hits(blat_result,rna_db,readlen) 
-    $timepoints<<[Time.now,'rna store_hits']
-    reads_fasta=filter_hits(reads_fasta,rna_db,table) # overwrite name of reads file
-    $timepoints<<[Time.now,'rna filter_hits']
-  end
-  blat_chrs(reads_fasta,blat,genomes,blat_opts) 
-  $timepoints<<[Time.now,'blat_chrs']
-  pslReps() if Options.run_pslReps
-  $timepoints<<[Time.now,'pslReps']
-  pslSort() if Options.run_pslSort
-  $timepoints<<[Time.now,'pslSort']
-
-end
-
-#-----------------------------------------------------------------------
-# run blat against the rna.fa file:
-def blat_rna(blat,reads_fasta)
-  $timepoints<<[Time.now,'blat_rna starting']
-
-  rna_genome="#{$genomes_dir}/#{Options.org}/fasta/rna.fa"
-  rna_output="#{$working_dir}/#{$export_file}.rna.psl"
-  rna_blat_opts="-out=pslx -minScore=#{Options.min_score}"
-
-  cmd="#{blat} #{rna_genome} #{reads_fasta} #{rna_blat_opts} #{rna_output}"
-  puts "\n#{cmd}\n"
-  launch cmd
-
-  filter_minScore(rna_output)
-  rna_output
-end
-
-#-----------------------------------------------------------------------
-# run blat against all chrs using each .nib file:
-def blat_chrs(reads_fasta,blat,genomes,blat_opts)
-  # build chr array; can't believe there's not a better way to convert a range to an array:
-  org=Options.org.downcase.to_sym
-  n_chrs={:human=>22, :mouse=>19}[org]
-
-  chrs=Array.new
-  (1..n_chrs).each {|i| chrs<<i}
-  chrs<<'X'
-  chrs<<'Y'
-
-  chrs.each {|chr|
-    $timepoints<<[Time.now,"blat chr #{chr} starting"]
-    blat_chr_output="#{$working_dir}/#{$export_file}.#{chr}.#{$psl_ext}"
-    cmd="#{blat} #{genomes}/chr#{chr}.nib #{reads_fasta} #{blat_opts} #{blat_chr_output}"
-    puts "\n#{cmd}\n"
-
-    launch cmd
-    filter_minScore(blat_chr_output)
-  }
-end
 
 
-#-----------------------------------------------------------------------
-# remove all hits below minScore (since I can't seem to get blat to do
-# that for me :( 
-def filter_minScore(blat_result)
-  return if Options.dry_run
-  tmp_filename="#{blat_result}.tmp"
-  tmp_file=File.open(tmp_filename,"w")
-  File.open(blat_result,"r").each do |l|
-    stuff=l.split
-    next if stuff[0].to_i<Options.min_score
-    next if stuff[1].to_i>Options.max_mismatches
-    tmp_file.puts l 
-  end
 
-  FileUtils.mv(tmp_filename,blat_result)
-  blat_result
-end
-
-#-----------------------------------------------------------------------
-# concat and sort blat results
-# pslSort dirs[1|2] outFile tempDir inDir(s)
-def pslSort()
-  $timepoints<<[Time.now,'pslSort starting']
-  FileUtils.rm $blat_output if FileTest.exists? $blat_output
-  cmd="#{$pslSort} dirs #{$blat_output} #{$working_dir}/tmp #{$working_dir}"
-  puts "\n#{cmd}\n"
-  launch cmd
-end
-
-#-----------------------------------------------------------------------
-# filter repeats
-#$BLATPATH/pslReps -minNearTopSize=70 s3_1.hg18.blat s3_1.hg18.blatbetter s3_1.blatpsr
-def run_pslReps()
-  raise "pslReps nyi"
-  pslOpts='-minNearTopSize=70'
-  pslreps_output="#{$working_dir}/#{$export_file}.pslreps"
-
-  cmd="#{$pslReps} #{pslOpts} #{pslreps_output}"
-end
-
-#-----------------------------------------------------------------------
-# remove all the hits found in #{blat_result} from #{export_file}, using the tmp db #{db}
-# Steps:
-# 1. insert all uniq seqs in blat_result (corrected for mismatches) into db
-def store_hits(blat_result,db,readlen)
-  dbh=SQLite3::Database.new(db)
-  table=File.basename($export_file.clone) # have to clone export_file because otherwise it gets changed with gsub! below
-  table.gsub!(/\./, '_')
-  return table unless Options.call_store_hits || Options.dry_run
-  puts "store_hits: storing hits in #{blat_result} into #{table}"
-  dbh.execute("DROP TABLE IF EXISTS #{table}")
-  dbh.execute("CREATE TABLE #{table} (seq CHAR(#{readlen}) PRIMARY KEY)")
-  puts "#{table}: shazam!"
-
-  # insert the blat results into the db
-  n_insertions=0
-
-  dbh.execute('PRAGMA synchronous=OFF')
-  dbh.execute('PRAGMA cache_size=20000')
-  dbh.execute('BEGIN TRANSACTION')
-  File.open(blat_result).each do |l|
-    stuff=l.split
-    read=stuff[21]; next if read.nil?
-    read.sub!(/,$/, '')
-    strand=stuff[8]
-    match=stuff[0]
-    next if read.length != readlen
-    next if match.to_i < readlen-Options.max_mismatches
-    begin
-      rows=dbh.query("SELECT COUNT(*) FROM #{table} WHERE seq='#{read}'").next
-      next if rows[0].to_i>0    # I'm liking sqlite3 less and less
-      dbh.execute("INSERT INTO #{table} (seq) VALUES ('#{read}')")
-      n_insertions+=1
-    rescue Exception => e
-      puts "#{read}: #{e.message}"
-    end
-  end
-
-  dbh.execute('END TRANSACTION')
-
-  puts "#{n_insertions} reads stored to #{table}"
-  table
-end
-
-#-----------------------------------------------------------------------
-# 2. filter export_file, looking up each result in db and omitting it from output if found.
-# returns name of reads fastafile with all rna seqs removed (suffix='.no_rna.fa')
-def filter_hits(fq_output,db,table)
-  dbh=SQLite3::Database.new(db)
-
-  outfile=File.replace_ext("#{fq_output}","no_rna.fa")
-#  return outfile unless Options.call_filter_hits || Options.dry_run # wtf??? fixdme
-#  return outfile if Options.dry_run # fixdme here, too
-  puts "filter_hits: writing to #{outfile}"
-  out=File.open(outfile,"w")
-  n_read=n_written=0
-  header=''
-  dbh.execute('PRAGMA synchronous=OFF')
-  dbh.execute('PRAGMA cache_size=20000')
-  dbh.execute('BEGIN TRANSACTION')
-  File.open(fq_output).each do |l|
-    if l.match('^>')
-      header=l
-      next
-    end
-    read=l.chomp.downcase
-    if read.match(/^[acgtn]+$/)
-      n_read+=1
-    else
-      raise "bad read?: '#{read}'"
-    end
-
-    row=dbh.query("SELECT count(seq) FROM #{table} WHERE seq='#{read}'").next # gets first
-    if row[0].to_i==0            # if found, we want to OMIT it from the new .fa file
-      out.puts header
-      out.puts l 
-      n_written+=1
-#      puts "didn't find '#{read}', retaining" 
-    else
-#      puts "found '#{read}'"
-    end
-  end
-  dbh.execute('END TRANSACTION')
-
-  out.close
-  printf "#{n_read} read, #{n_written} written (%5.2f%%)\n", n_written.to_f/n_read.to_f*100.0
-  outfile
-end
-
-
-#check
 ########################################################################
 ## makeRdsFromBowtie-cmd.sh:
 
@@ -555,7 +361,13 @@ end
 
 def post_status(pp_id, status)
   return if pp_id.nil? or pp_id.to_i<=0
-  launch("#{$perl} #{$post_slimseq} -type rnaseq_pipelines -id #{pp_id} -field status -value '#{status}'")
+  cmd="#{$perl} #{$post_slimseq} -type rnaseq_pipelines -id #{pp_id} -field status -value '#{status}'"
+  begin
+    launch(cmd)
+  rescue Exception=>e
+    $stderr.puts "Error in '#{cmd}:"
+    $stderr.puts "#{e.class}: #{e.message}"
+  end
 end
 
 ########################################################################
@@ -593,6 +405,32 @@ def report_times()
   end
   puts "report written at #{Time.now}"
 end
+
+########################################################################
+
+def report_to_mothership(e)
+  return unless e.is_a?(Exception)
+  begin
+    require 'mail'
+    msg=<<"MSG"
+#{e.message}
+#{e.traceback}
+
+#{Options.all}
+MSG
+    mail = Mail.new do
+      from 'vcassen@systemsbiology.net'
+      to 'vcassen@systemsbiology.net+rnaseq_pipeline'
+      subject e.message
+      body msg
+    end
+    mail.deliver!
+    
+  rescue Exception=>e
+    # not much we can do, maybe log it
+  end
+end
+
 
 ########################################################################
 
